@@ -7,19 +7,29 @@ import org.jsoup.nodes.Document;
 import org.jsoup.parser.Parser;
 import org.jsoup.parser.TokenQueue;
 
-import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.util.*;
 import java.util.zip.GZIPInputStream;
+
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.Proxy;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Implementation of {@link Connection}.
- * @see org.jsoup.Jsoup#connect(String) 
+ * @see org.jsoup.Jsoup#connect(String)
  */
 public class HttpConnection implements Connection {
     public static Connection connect(String url) {
@@ -161,6 +171,17 @@ public class HttpConnection implements Connection {
         req.parser(parser);
         return this;
     }
+
+
+  public Connection proxy(Proxy proxy) {
+    req.proxy(proxy);
+    return this;
+  }
+
+//  public Connection proxy(Proxy proxy, String username, String password) {
+//    req.proxy(proxy, username, password);
+//    return this;
+//  }
 
     public Document get() throws IOException {
         req.method(Method.GET);
@@ -315,6 +336,9 @@ public class HttpConnection implements Connection {
         private int maxBodySizeBytes;
         private boolean followRedirects;
         private Collection<Connection.KeyVal> data;
+    private Proxy proxy;
+//    private String proxyUsername;
+//    private String proxyPassword;
         private boolean ignoreHttpErrors = false;
         private boolean ignoreContentType = false;
         private Parser parser;
@@ -327,6 +351,9 @@ public class HttpConnection implements Connection {
             method = Connection.Method.GET;
             headers.put("Accept-Encoding", "gzip");
             parser = Parser.htmlParser();
+            proxy = null;
+//      proxyUsername = "";
+//      proxyPassword = "";
         }
 
         public int timeout() {
@@ -385,16 +412,40 @@ public class HttpConnection implements Connection {
         public Collection<Connection.KeyVal> data() {
             return data;
         }
-        
+
         public Request parser(Parser parser) {
             this.parser = parser;
             return this;
         }
-        
+
         public Parser parser() {
             return parser;
         }
+
+        public Request proxy(Proxy proxy) {
+            this.proxy = proxy;
+            return this;
+        }
+
+//    public Request proxy(Proxy proxy, String username, String password) {
+//      this.proxy = proxy;
+//      this.proxyUsername = username;
+//      this.proxyPassword = password;
+//      return this;
+//    }
+
+    public Proxy proxy() {
+      return proxy;
     }
+
+//    public String proxyUsername() {
+//      return proxyUsername;
+//    }
+//
+//    public String proxyPassword() {
+//      return proxyPassword;
+//    }
+  }
 
     public static class Response extends Base<Connection.Response> implements Connection.Response {
         private static final int MAX_REDIRECTS = 20;
@@ -419,7 +470,7 @@ public class HttpConnection implements Connection {
                     throw new IOException(String.format("Too many redirects occurred trying to load URL %s", previousResponse.url()));
             }
         }
-        
+
         static Response execute(Connection.Request req) throws IOException {
             return execute(req, null);
         }
@@ -537,9 +588,26 @@ public class HttpConnection implements Connection {
             return byteData.array();
         }
 
-        // set up connection defaults, and details from request
-        private static HttpURLConnection createConnection(Connection.Request req) throws IOException {
-            HttpURLConnection conn = (HttpURLConnection) req.url().openConnection();
+    // set up connection defaults, and details from request
+    private static HttpURLConnection createConnection(Connection.Request req) throws IOException {
+      HttpURLConnection conn;
+      if (req.proxy() != null) {
+        conn = (HttpURLConnection) req.url().openConnection(req.proxy());
+//        StringBuffer sb = new StringBuffer();
+//        try {
+//          Validate.notEmpty(req.proxyUsername());
+//          sb.append(req.proxyUsername());
+//        } catch (IllegalArgumentException e) {}
+//        sb.append(":");
+//        try {
+//          Validate.notEmpty(req.proxyPassword());
+//          sb.append(req.proxyPassword());
+//        } catch (IllegalArgumentException e) {}
+//        if (sb.length() > 1)
+//          conn.setRequestProperty("Proxy-Authorization", "Basic " + Base64.encodeBytes(sb.toString().getBytes()));
+      } else {
+        conn = (HttpURLConnection) req.url().openConnection();
+      }
             conn.setRequestMethod(req.method().name());
             conn.setInstanceFollowRedirects(false); // don't rely on native redirection support
             conn.setConnectTimeout(req.timeout());
@@ -606,18 +674,18 @@ public class HttpConnection implements Connection {
             OutputStreamWriter w = new OutputStreamWriter(outputStream, DataUtil.defaultCharset);
             boolean first = true;
             for (Connection.KeyVal keyVal : data) {
-                if (!first) 
+                if (!first)
                     w.append('&');
                 else
                     first = false;
-                
+
                 w.write(URLEncoder.encode(keyVal.key(), DataUtil.defaultCharset));
                 w.write('=');
                 w.write(URLEncoder.encode(keyVal.value(), DataUtil.defaultCharset));
             }
             w.close();
         }
-        
+
         private static String getRequestCookieString(Connection.Request req) {
             StringBuilder sb = new StringBuilder();
             boolean first = true;
@@ -701,6 +769,6 @@ public class HttpConnection implements Connection {
         @Override
         public String toString() {
             return key + "=" + value;
-        }      
+        }
     }
 }

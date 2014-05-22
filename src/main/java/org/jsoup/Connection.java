@@ -3,6 +3,7 @@ package org.jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.parser.Parser;
 
+import java.net.Proxy;
 import java.net.URL;
 import java.util.Map;
 import java.util.Collection;
@@ -434,6 +435,13 @@ public interface Connection {
          * @return current Parser
          */
         public Parser parser();
+
+
+      public Proxy proxy();
+      public Request proxy(Proxy proxy);
+//      public Connection proxy(Proxy proxy, String username, String password);
+//      public String proxyUsername();
+//      public String proxyPassword();
     }
 
     /**
@@ -483,6 +491,12 @@ public interface Connection {
          * @return body bytes
          */
         public byte[] bodyAsBytes();
+
+//      public Proxy proxy();
+//      public Response proxy(Proxy proxy);
+//      public Connection proxy(Proxy proxy, String username, String password);
+//      public String proxyUsername();
+//      public String proxyPassword();
     }
 
     /**
